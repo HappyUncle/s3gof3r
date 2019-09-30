@@ -13,6 +13,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -210,6 +211,7 @@ func (p *putter) putPart(part *part) error {
 	if err != nil {
 		return err
 	}
+	fmt.Fprintf(os.Stderr, "req %+v, resp %+v\n", req, resp)
 	defer checkClose(resp.Body, err)
 	if resp.StatusCode != 200 {
 		return newRespError(resp)
