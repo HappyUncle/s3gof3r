@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/rlmcpherson/s3gof3r"
+	"github.com/happyuncle/s3gof3r"
 )
 
 type getOpts struct {
@@ -37,7 +37,7 @@ func (get *getOpts) Execute(args []string) (err error) {
 	conf.Md5Check = !get.NoMd5
 	conf.NTry = get.NTry
 
-	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags, get.Debug)
+	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags|log.Llongfile)
 
 	if get.VersionID != "" {
 		get.Key = fmt.Sprintf("%s?versionId=%s", get.Key, get.VersionID)

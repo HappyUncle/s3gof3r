@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/rlmcpherson/s3gof3r"
+	"github.com/happyuncle/s3gof3r"
 )
 
 type putOpts struct {
@@ -36,7 +36,7 @@ func (put *putOpts) Execute(args []string) (err error) {
 	conf.PartSize = put.PartSize
 	conf.Md5Check = !put.NoMd5
 	conf.NTry = put.NTry
-	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags, put.Debug)
+	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags|log.Llongfile)
 
 	if put.Header == nil {
 		put.Header = make(http.Header)

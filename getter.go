@@ -84,10 +84,9 @@ func newGetter(getURL url.URL, c *Config, b *Bucket) (io.ReadCloser, http.Header
 		return nil, nil, fmt.Errorf("Retrieving objects with undefined content-length " +
 			" responses (chunked transfer encoding / EOF close) is not supported")
 	}
-
 	g.contentLen = resp.ContentLength
 	g.chunkTotal = int((g.contentLen + g.bufsz - 1) / g.bufsz) // round up, integer division
-	logger.debugPrintf("object size: %3.2g MB", float64(g.contentLen)/float64((1*mb)))
+	logger.Printf("object size: %3.2g MB", float64(g.contentLen)/float64((1*mb)))
 
 	g.sp = bufferPool(g.bufsz)
 
@@ -115,7 +114,7 @@ func (g *getter) retryRequest(method, urlStr string, body io.ReadSeeker) (resp *
 		if err == nil {
 			return
 		}
-		logger.debugPrintln(err)
+		logger.Println(err)
 		if body != nil {
 			if _, err = body.Seek(0, 0); err != nil {
 				return
@@ -160,9 +159,10 @@ func (g *getter) retryGetChunk(c *chunk) {
 		if err == nil {
 			return
 		}
-		logger.debugPrintf("error on attempt %d: retrying chunk: %v, error: %s", i, c.id, err)
+		logger.Printf("Fail on attempt %d: retrying chunk: %v, msg: %s", i, c.id, err)
 		time.Sleep(time.Duration(math.Exp2(float64(i))) * 100 * time.Millisecond) // exponential back-off
 	}
+	logger.Printf("get part %d, Error: %s", c.id, err)
 	select {
 	case <-g.quit: // check for closed quit channel before setting error
 		return
@@ -319,8 +319,8 @@ func (g *getter) checkMd5() (err error) {
 		return err
 	}
 
-	logger.debugPrintln("md5: ", calcMd5)
-	logger.debugPrintln("md5Path: ", md5Path)
+	logger.Println("md5: ", calcMd5)
+	logger.Println("md5Path: ", md5Path)
 	resp, err := g.retryRequest("GET", md5Url.String(), nil)
 	if err != nil {
 		return

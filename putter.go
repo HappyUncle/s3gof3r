@@ -23,10 +23,10 @@ import (
 
 // defined by amazon
 const (
-	minPartSize  = 5 * mb
-	maxPartSize  = 5 * gb
-	maxObjSize   = 5 * tb
-	maxNPart     = 10000
+	minPartSize = 1 * mb
+	//maxPartSize  = 5 * gb
+	//maxObjSize   = 5 * tb
+	//maxNPart     = 10000
 	md5Header    = "content-md5"
 	sha256Header = "X-Amz-Content-Sha256"
 )
@@ -105,7 +105,7 @@ func newPutter(url url.URL, h http.Header, c *Config, b *Bucket) (p *putter, err
 	p.md5 = md5.New()
 
 	p.sp = bufferPool(p.bufsz)
-
+	logger.Printf("putter max_try=%d, buffer_pool=%dMb, Concurrency=%d", p.c.NTry, p.bufsz/(1*mb), p.c.Concurrency)
 	return p, nil
 }
 
@@ -157,14 +157,6 @@ func (p *putter) flush() {
 	p.xml.Part = append(p.xml.Part, part)
 	p.ch <- part
 	p.buf, p.bufbytes = nil, 0
-
-	// if necessary, double buffer size every 2000 parts due to the 10000-part AWS limit
-	// to reach the 5 Terabyte max object size, initial part size must be ~85 MB
-	if p.part%2000 == 0 && p.part < maxNPart && growPartSize(p.part, p.bufsz, p.putsz) {
-		p.bufsz = min64(p.bufsz*2, maxPartSize)
-		p.sp.sizech <- p.bufsz // update pool buffer size
-		logger.debugPrintf("part size doubled to %d", p.bufsz)
-	}
 }
 
 func (p *putter) worker() {
@@ -184,9 +176,10 @@ func (p *putter) retryPutPart(part *part) {
 			part.b = nil
 			return
 		}
-		logger.debugPrintf("Error on attempt %d: Retrying part: %d, Error: %s", i, part.PartNumber, err)
+		logger.Printf("Fail on attempt %d: Retrying part: %d, msg: %s", i, part.PartNumber, err)
 		time.Sleep(time.Duration(math.Exp2(float64(i))) * 100 * time.Millisecond) // exponential back-off
 	}
+	logger.Printf("Upload part %d, Error: %s", part.PartNumber, err)
 	p.err = err
 }
 
@@ -210,22 +203,25 @@ func (p *putter) putPart(part *part) error {
 	if err != nil {
 		return err
 	}
+	logger.Printf("putter part-num=%d,part-size=%d,buf-size=%d,put-size=%d, req.URL %+v, resp.StatusCode %d\n",
+		p.part, p.bufsz, p.bufbytes, p.putsz, req.URL, resp.StatusCode)
 	defer checkClose(resp.Body, err)
 	if resp.StatusCode != 200 {
 		return newRespError(resp)
 	}
 	s := resp.Header.Get("etag")
 	if len(s) < 2 {
-		return fmt.Errorf("Got Bad etag:%s", s)
+		return fmt.Errorf("got Bad etag:%s", s)
 	}
 	s = s[1 : len(s)-1] // includes quote chars for some reason
 	if part.ETag != s {
-		return fmt.Errorf("Response etag does not match. Remote:%s Calculated:%s", s, p.ETag)
+		return fmt.Errorf("response etag does not match. Remote:%s Calculated:%s", s, p.ETag)
 	}
 	return nil
 }
 
 func (p *putter) Close() (err error) {
+	logger.Printf("etag=[%s], put_size=[%d]\n", fmt.Sprintf("%x", p.md5OfParts.Sum(nil)), p.putsz)
 	if p.closed {
 		p.abort()
 		return syscall.EINVAL
@@ -279,14 +275,11 @@ func (p *putter) Close() (err error) {
 	remoteMd5ofParts := strings.Trim(p.ETag, "\"")
 	remoteMd5ofParts = strings.Split(remoteMd5ofParts, "-")[0]
 	if len(remoteMd5ofParts) == 0 {
-		return fmt.Errorf("Nil ETag")
+		return fmt.Errorf("nil ETag")
 	}
 	if calculatedMd5ofParts != remoteMd5ofParts {
-		if err != nil {
-			return err
-		}
-		return fmt.Errorf("MD5 hash of part hashes comparison failed. Hash from multipart complete header: %s."+
-			" Calculated multipart hash: %s.", remoteMd5ofParts, calculatedMd5ofParts)
+		return fmt.Errorf("md5 hash of part hashes comparison failed. Hash from multipart complete header: %s. "+
+			"Calculated multipart hash: %s", remoteMd5ofParts, calculatedMd5ofParts)
 	}
 	if p.c.Md5Check {
 		for i := 0; i < p.c.NTry; i++ {
@@ -344,8 +337,8 @@ func (p *putter) putMd5() (err error) {
 	if err != nil {
 		return err
 	}
-	logger.debugPrintln("md5: ", calcMd5)
-	logger.debugPrintln("md5Path: ", md5Path)
+	logger.Println("md5: ", calcMd5)
+	logger.Println("md5Path: ", md5Path)
 	r, err := http.NewRequest("PUT", md5Url.String(), md5Reader)
 	if err != nil {
 		return
@@ -384,7 +377,7 @@ func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.
 		if err == nil {
 			return
 		}
-		logger.debugPrintln(err)
+		logger.Println(err)
 		if body != nil {
 			if _, err = body.Seek(0, 0); err != nil {
 				return
@@ -392,10 +385,4 @@ func (p *putter) retryRequest(method, urlStr string, body io.ReadSeeker, h http.
 		}
 	}
 	return
-}
-
-// returns true unless partSize is large enough
-// to achieve maxObjSize with remaining parts
-func growPartSize(partIndex int, partSize, putsz int64) bool {
-	return (maxObjSize-putsz)/(maxNPart-int64(partIndex)) > partSize
 }

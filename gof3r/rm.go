@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/rlmcpherson/s3gof3r"
+	"github.com/happyuncle/s3gof3r"
 )
 
 type rmOpts struct {
@@ -30,7 +30,7 @@ func (rm *rmOpts) Execute(args []string) error {
 	conf := new(s3gof3r.Config)
 	*conf = *s3gof3r.DefaultConfig
 	s3 := s3gof3r.New(rm.EndPoint, k)
-	s3gof3r.SetLogger(os.Stderr, "", log.Ltime, rm.Debug)
+	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags|log.Llongfile)
 
 	// parse positional cp args
 	if len(args) != 1 {

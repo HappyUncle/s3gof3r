@@ -31,6 +31,7 @@ func bufferPool(bufsz int64) (sp *bp) {
 	go func() {
 		q := new(list.List)
 		for {
+			logger.Printf("buffer pool list len=%d", q.Len())
 			if q.Len() == 0 {
 				q.PushFront(qb{when: time.Now(), s: make([]byte, bufsz)})
 				sp.makes++
@@ -56,11 +57,12 @@ func bufferPool(bufsz int64) (sp *bp) {
 						e.Value = nil
 					}
 					e = n
+					logger.Printf("free unused slices older than timeout %d.", sp.makes)
 				}
 			case sz := <-sp.sizech: // update buffer size, free buffers
 				bufsz = sz
 			case <-sp.quit:
-				logger.debugPrintf("%d buffers of %d MB allocated", sp.makes, bufsz/(1*mb))
+				logger.Printf("%d buffers of %d MB allocated", sp.makes, bufsz/(1*mb))
 				return
 			}
 		}

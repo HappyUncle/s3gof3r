@@ -37,8 +37,8 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/happyuncle/s3gof3r"
 	"github.com/jessevdk/go-flags"
-	"github.com/rlmcpherson/s3gof3r"
 )
 
 const (
@@ -49,12 +49,11 @@ const (
 func main() {
 	// set the number of processors to use to the number of cpus for parallelization of concurrent transfers
 	runtime.GOMAXPROCS(runtime.NumCPU())
-
 	start := time.Now()
 
 	// parse ini file
 	if err := parseIni(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Printf("err is %s", err)
 	}
 
 	// parser calls the Execute function for the command after parsing the command line options.
@@ -73,15 +72,15 @@ func main() {
 				if parser.Active != nil {
 					cmd = parser.Active.Name
 				}
-				fmt.Fprintf(os.Stderr, "gof3r error: %s\n", err)
-				fmt.Fprintf(os.Stderr, "run 'gof3r %s --help' for usage.\n", cmd)
+				fmt.Printf("gof3r error: %s\n", err)
+				fmt.Printf("run 'gof3r %s --help' for usage.\n", cmd)
 			}
 		} else { // handle non-parse errors
-			fmt.Fprintf(os.Stderr, "gof3r error: %s\n", err)
+			fmt.Printf("gof3r error: %s\n", err)
 		}
 		os.Exit(1)
 	}
-	fmt.Fprintf(os.Stderr, "duration: %v\n", time.Since(start))
+	fmt.Printf("duration: %v\n", time.Since(start))
 }
 
 // getAWSKeys gets the AWS Keys from environment variables or the instance-based metadata on EC2

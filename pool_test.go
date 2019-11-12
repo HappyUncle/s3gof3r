@@ -16,8 +16,8 @@ func TestBP(t *testing.T) {
 
 	// send log output to buffer
 	lf := *bytes.NewBuffer(nil)
-	SetLogger(&lf, "", log.LstdFlags, true)
-	defer SetLogger(ioutil.Discard, "", log.LstdFlags, true)
+	SetLogger(&lf, "", log.LstdFlags)
+	defer SetLogger(ioutil.Discard, "", log.LstdFlags)
 
 	bp := bufferPool(mb)
 	bp.timeout = 1 * time.Millisecond

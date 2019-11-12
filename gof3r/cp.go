@@ -8,7 +8,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rlmcpherson/s3gof3r"
+	"github.com/happyuncle/s3gof3r"
 )
 
 type CpArg struct {
@@ -42,7 +42,7 @@ func (cp *cpOpts) Execute(args []string) (err error) {
 	conf.PartSize = cp.PartSize
 	conf.Md5Check = !cp.NoMd5
 	conf.NTry = cp.NTry
-	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags, cp.Debug)
+	s3gof3r.SetLogger(os.Stderr, "", log.LstdFlags|log.Llongfile)
 
 	src, err := func(src string) (io.ReadCloser, error) {
 		if !strings.HasPrefix(strings.ToLower(src), "s3") {
