@@ -204,7 +204,7 @@ func (p *putter) putPart(part *part) error {
 		return err
 	}
 	logger.Printf("putter part-num=%d,part-size=%d,buf-size=%d,put-size=%d, req.URL %+v, resp.StatusCode %d\n",
-		p.part, p.bufsz, p.bufbytes, p.putsz, req.URL, resp.StatusCode)
+		part.PartNumber, part.len, p.bufbytes, p.putsz, req.URL, resp.StatusCode)
 	defer checkClose(resp.Body, err)
 	if resp.StatusCode != 200 {
 		return newRespError(resp)
@@ -215,13 +215,12 @@ func (p *putter) putPart(part *part) error {
 	}
 	s = s[1 : len(s)-1] // includes quote chars for some reason
 	if part.ETag != s {
-		return fmt.Errorf("response etag does not match. Remote:%s Calculated:%s", s, p.ETag)
+		return fmt.Errorf("response etag does not match. Remote:%s Calculated:%s", s, part.ETag)
 	}
 	return nil
 }
 
 func (p *putter) Close() (err error) {
-	logger.Printf("etag=[%s], put_size=[%d]\n", fmt.Sprintf("%x", p.md5OfParts.Sum(nil)), p.putsz)
 	if p.closed {
 		p.abort()
 		return syscall.EINVAL
@@ -269,6 +268,7 @@ func (p *putter) Close() (err error) {
 	// Parse etag from body of response
 	err = xml.NewDecoder(resp.Body).Decode(p)
 	if err != nil {
+		fmt.Println(err.Error())
 		return
 	}
 	// Trim quotes '"' and strip part count from end.
@@ -277,6 +277,7 @@ func (p *putter) Close() (err error) {
 	if len(remoteMd5ofParts) == 0 {
 		return fmt.Errorf("nil ETag")
 	}
+	fmt.Printf("etag=[%s], put_size=[%d]\n", p.ETag, p.putsz)
 	if calculatedMd5ofParts != remoteMd5ofParts {
 		return fmt.Errorf("md5 hash of part hashes comparison failed. Hash from multipart complete header: %s. "+
 			"Calculated multipart hash: %s", remoteMd5ofParts, calculatedMd5ofParts)
